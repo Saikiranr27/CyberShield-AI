@@ -1,0 +1,28 @@
+# Python
+backend/venv/
+__pycache__/
+*.pyc
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Runtime files
+backend/*.log
+backend/scans/*
+!backend/scans/.gitkeep
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# OS / IDE
+.DS_Store
+.vscode/
+.venv/
