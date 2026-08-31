@@ -515,3 +515,4 @@ not a software weakness) are left null rather than forced. New
 - `npm run build` and backend syntax/import checks both clean after every
   change; a full broken-import sweep across the frontend came back clean.
 # CI test
+CI/CD test
