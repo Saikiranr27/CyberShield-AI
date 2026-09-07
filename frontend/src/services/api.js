@@ -23,7 +23,7 @@ import { MOCK_LOG_STEPS, buildMockAdaptedResult, buildModulePlan } from "./mockD
  * ---------------------------------------------------------------------------
  */
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 const MOCK_MODE = import.meta.env.VITE_MOCK_MODE === "true"; // real backend by default
 const REQUEST_TIMEOUT_MS = 120_000;
 const GET_CACHE_TTL_MS = 10_000;
