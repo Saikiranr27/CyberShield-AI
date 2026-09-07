@@ -25,6 +25,7 @@ import ssl
 import subprocess
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import urlparse
 
 from config import config
 from utils.logger import get_logger
@@ -159,9 +160,24 @@ def _security_grade(tls_version: str, secret_bits: int | None, validity_status: 
     return {"grade": grade, "reason": reason}
 
 
-def _attempt_handshake(hostname: str, port: int, timeout: int) -> dict[str, Any]:
+def _parse_endpoint(target: str, default_port: int = 443) -> tuple[str, int]:
+    candidate = target.strip()
+    parsed = urlparse(candidate if "://" in candidate else f"//{candidate}")
+    hostname = parsed.hostname
+    if not hostname:
+        raise ValueError("Target does not contain a valid hostname.")
+    try:
+        port = parsed.port or default_port
+    except ValueError as exc:
+        raise ValueError("Target contains an invalid port.") from exc
+    if not 1 <= port <= 65535:
+        raise ValueError("Target port must be between 1 and 65535.")
+    return hostname, port
+
+
+def _attempt_handshake(hostname: str, port: int, timeout: int, verify: bool = True) -> dict[str, Any]:
     """One TLS connection attempt. Raises the underlying exception on failure."""
-    context = ssl.create_default_context()
+    context = ssl.create_default_context() if verify else ssl._create_unverified_context()
     with socket.create_connection((hostname, port), timeout=timeout) as sock:
         with context.wrap_socket(sock, server_hostname=hostname) as tls_sock:
             cert = tls_sock.getpeercert()
@@ -175,6 +191,7 @@ def _attempt_handshake(hostname: str, port: int, timeout: int) -> dict[str, Any]
         "cipher_name": cipher_name,
         "cipher_protocol": cipher_protocol,
         "secret_bits": secret_bits,
+        "verified": verify,
     }
 
 
@@ -184,9 +201,15 @@ def analyze_ssl(hostname: str, port: int = 443) -> dict[str, Any]:
     Retries once on a bare connection timeout (transient network hiccups are
     common enough on TLS handshakes to be worth one retry before giving up).
     """
+    try:
+        hostname, port = _parse_endpoint(hostname, port)
+    except ValueError as exc:
+        return {"error": str(exc)}
+
     attempts_left = 2 if config.SSL_RETRY_ON_TIMEOUT else 1
     handshake = None
     last_error: str | None = None
+    verification_error: str | None = None
 
     while attempts_left > 0 and handshake is None:
         attempts_left -= 1
@@ -194,7 +217,13 @@ def analyze_ssl(hostname: str, port: int = 443) -> dict[str, Any]:
             handshake = _attempt_handshake(hostname, port, config.SSL_TIMEOUT_SECONDS)
         except ssl.SSLCertVerificationError as exc:
             logger.warning("Certificate verification failed for %s: %s", hostname, exc)
-            return {"error": f"Certificate verification failed: {exc.verify_message or exc}"}
+            verification_error = exc.verify_message or str(exc)
+            try:
+                handshake = _attempt_handshake(hostname, port, config.SSL_TIMEOUT_SECONDS, verify=False)
+            except (socket.timeout, TimeoutError):
+                return {"error": f"Certificate verification failed and the fallback inspection timed out: {verification_error}"}
+            except (socket.gaierror, ConnectionRefusedError, OSError) as fallback_exc:
+                return {"error": f"Certificate verification failed ({verification_error}); could not inspect the certificate: {fallback_exc}"}
         except (socket.timeout, TimeoutError):
             last_error = f"Connection to {hostname}:{port} timed out."
             if attempts_left > 0:
@@ -243,7 +272,13 @@ def analyze_ssl(hostname: str, port: int = 443) -> dict[str, Any]:
         "signature_algorithm": None,
         "serial_number": None,
         "certificate_chain": [],
+        "certificate_verified": handshake["verified"],
     }
+    if verification_error:
+        result["certificate_verification_error"] = verification_error
+        if validity_status == "valid":
+            validity_status = "untrusted"
+            result["validity_status"] = validity_status
 
     # Everything below is bonus enrichment — if it's unavailable or parsing
     # fails, the core result above is still returned complete rather than

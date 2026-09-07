@@ -1,7 +1,6 @@
 import React from "react";
-import { Settings as SettingsIcon, Palette, Accessibility, Server } from "lucide-react";
+import { Settings as SettingsIcon, Palette, Accessibility } from "lucide-react";
 import { COLORS } from "../constants/theme.js";
-import { apiConfig } from "../services/api.js";
 import { useTheme } from "../hooks/useTheme.jsx";
 import Sidebar from "../components/layout/Sidebar.jsx";
 import Panel from "../components/common/Panel.jsx";
@@ -67,24 +66,6 @@ export default function Settings() {
             </label>
           </Panel>
 
-          <Panel title="API CONFIGURATION" icon={Server} iconColor={COLORS.orange}>
-            <dl className="space-y-2 text-[12px] font-mono">
-              <div className="flex justify-between">
-                <dt className="text-white/40">Base URL</dt>
-                <dd className="text-white/75 m-0">{apiConfig.API_BASE}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-white/40">Mode</dt>
-                <dd className="m-0" style={{ color: apiConfig.MOCK_MODE ? COLORS.orange : COLORS.green }}>
-                  {apiConfig.MOCK_MODE ? "Mock (no backend connected)" : "Live"}
-                </dd>
-              </div>
-            </dl>
-            <p className="text-[11px] text-white/30 mt-3">
-              Connect a real Flask backend by setting <code className="text-white/50">VITE_MOCK_MODE=false</code> and{" "}
-              <code className="text-white/50">VITE_API_BASE_URL</code> in your environment.
-            </p>
-          </Panel>
         </div>
       </main>
     </div>

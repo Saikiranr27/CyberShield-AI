@@ -88,7 +88,7 @@ def _run_vulnerability_scanner(target: str, _raw: str, cache: dict[str, Any], lo
 
 
 def _run_ssl_analyzer(target: str, _raw: str, _cache: dict[str, Any], _lock: threading.Lock) -> dict[str, Any]:
-    return ssl_analyzer.analyze_ssl(target)
+    return ssl_analyzer.analyze_ssl(_raw)
 
 
 def _run_dns_lookup(target: str, _raw: str, _cache: dict[str, Any], _lock: threading.Lock) -> dict[str, Any]:

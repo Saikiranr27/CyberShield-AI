@@ -8,6 +8,7 @@ reportlab's Platypus layout engine.
 
 from __future__ import annotations
 
+from html import escape
 from typing import Any
 
 from reportlab.lib import colors
@@ -76,8 +77,22 @@ def _styles() -> dict[str, ParagraphStyle]:
     }
 
 
-def _table(rows: list[list[str]], col_widths: list[float] | None = None) -> Table:
-    table = Table(rows, colWidths=col_widths, hAlign="LEFT")
+def _table(rows: list[list[Any]], col_widths: list[float] | None = None) -> Table:
+    cell_style = ParagraphStyle(
+        "TableCell", fontName="Helvetica", fontSize=8.5, leading=10.5,
+        textColor=colors.HexColor("#0F172A"), wordWrap="CJK",
+    )
+    header_style = ParagraphStyle(
+        "TableHeader", parent=cell_style, fontName="Helvetica-Bold", textColor=colors.white,
+    )
+    wrapped_rows = []
+    for row_index, row in enumerate(rows):
+        style = header_style if row_index == 0 else cell_style
+        wrapped_rows.append([
+            value if isinstance(value, Paragraph) else Paragraph(escape(str(value if value is not None else "")), style)
+            for value in row
+        ])
+    table = Table(wrapped_rows, colWidths=col_widths, hAlign="LEFT", repeatRows=1, splitByRow=1)
     table.setStyle(
         TableStyle(
             [
